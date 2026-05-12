@@ -1,0 +1,1 @@
+# Make scrapers a package
