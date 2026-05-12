@@ -1,6 +1,6 @@
 from typing import List
 import time
-from scrapers.timeline import get_deadlines as fetch_deadlines
+from scrapers.timeline import get_deadlines as fetch_deadlines, get_past_events as fetch_past_events
 
 def get_upcoming_deadlines(days: int = 14) -> str:
     """
@@ -29,3 +29,32 @@ def get_upcoming_deadlines(days: int = 14) -> str:
         
     except Exception as e:
         return f"Failed to retrieve deadlines: {str(e)}"
+
+def get_past_deadlines(days: int = 60) -> str:
+    """
+    Get a list of past or missed assignments and deadlines from the user's NLearn/Moodle dashboard.
+    This helps identify overdue tasks from active courses.
+    
+    Args:
+        days: How many days back to look for past deadlines. Default is 60.
+    """
+    try:
+        deadlines = fetch_past_events(days=days)
+        
+        if not deadlines:
+            return f"No past or missed deadlines found in the last {days} days."
+            
+        result = [f"Found {len(deadlines)} past/missed deadlines in the last {days} days:\n"]
+        
+        for d in deadlines:
+            date_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(d.due_date))
+            entry = f"- {d.name} (Course: {d.course_name})\n  Passed on: {date_str}\n  Link: {d.url}"
+            if d.action_name and d.action_url:
+                entry += f"\n  Action Pending: {d.action_name} ({d.action_url})"
+            result.append(entry)
+            
+        return "\n\n".join(result)
+        
+    except Exception as e:
+        return f"Failed to retrieve past deadlines: {str(e)}"
+
