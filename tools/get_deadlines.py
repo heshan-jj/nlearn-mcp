@@ -1,60 +1,54 @@
-from typing import List
+from typing import List, Dict, Any
 import time
 from scrapers.timeline import get_deadlines as fetch_deadlines, get_past_events as fetch_past_events
 
-def get_upcoming_deadlines(days: int = 14) -> str:
-    """
-    Get a list of upcoming assignments and deadlines from the user's NLearn/Moodle dashboard.
-    This fetches real-time data from the user's active courses.
-    
-    Args:
-        days: The number of days into the future to look for deadlines. Default is 14.
-    """
-    try:
-        deadlines = fetch_deadlines(days=days)
-        
-        if not deadlines:
-            return f"You have no upcoming deadlines in the next {days} days. Great job!"
-            
-        result = [f"Found {len(deadlines)} upcoming deadlines in the next {days} days:\n"]
-        
-        for d in deadlines:
-            date_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(d.due_date))
-            entry = f"- {d.name} (Course: {d.course_name})\n  Due: {date_str}\n  Link: {d.url}"
-            if d.action_name and d.action_url:
-                entry += f"\n  Action: {d.action_name} ({d.action_url})"
-            result.append(entry)
-            
-        return "\n\n".join(result)
-        
-    except Exception as e:
-        return f"Failed to retrieve deadlines: {str(e)}"
 
-def get_past_deadlines(days: int = 60) -> str:
+def _deadline_to_dict(d) -> Dict[str, Any]:
+    """Convert a Deadline dataclass instance to a plain dict for tool output."""
+    return {
+        "id": d.id,
+        "name": d.name,
+        "course_name": d.course_name,
+        "due_date_unix": d.due_date,
+        "due_date_iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(d.due_date)),
+        "url": d.url,
+        "action_name": d.action_name,
+        "action_url": d.action_url,
+    }
+
+
+def get_upcoming_deadlines(days: int = 14) -> Dict[str, Any]:
     """
-    Get a list of past or missed assignments and deadlines from the user's NLearn/Moodle dashboard.
-    This helps identify overdue tasks from active courses.
-    
-    Args:
-        days: How many days back to look for past deadlines. Default is 60.
+    Get structured upcoming deadlines from the user's NLearn/Moodle dashboard.
+
+    Returns a dict with a summary and a list of deadline objects, so Claude can reason over them.
     """
-    try:
-        deadlines = fetch_past_events(days=days)
-        
-        if not deadlines:
-            return f"No past or missed deadlines found in the last {days} days."
-            
-        result = [f"Found {len(deadlines)} past/missed deadlines in the last {days} days:\n"]
-        
-        for d in deadlines:
-            date_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(d.due_date))
-            entry = f"- {d.name} (Course: {d.course_name})\n  Passed on: {date_str}\n  Link: {d.url}"
-            if d.action_name and d.action_url:
-                entry += f"\n  Action Pending: {d.action_name} ({d.action_url})"
-            result.append(entry)
-            
-        return "\n\n".join(result)
-        
-    except Exception as e:
-        return f"Failed to retrieve past deadlines: {str(e)}"
+    deadlines = fetch_deadlines(days=days)
+
+    items: List[Dict[str, Any]] = [_deadline_to_dict(d) for d in deadlines]
+
+    return {
+        "window_days": days,
+        "count": len(items),
+        "has_deadlines": bool(items),
+        "deadlines": items,
+    }
+
+
+def get_past_deadlines(days: int = 60) -> Dict[str, Any]:
+    """
+    Get structured past/missed deadlines from the user's NLearn/Moodle dashboard.
+
+    Returns a dict with a summary and a list of deadline objects.
+    """
+    deadlines = fetch_past_events(days=days)
+
+    items: List[Dict[str, Any]] = [_deadline_to_dict(d) for d in deadlines]
+
+    return {
+        "window_days": days,
+        "count": len(items),
+        "has_deadlines": bool(items),
+        "deadlines": items,
+    }
 

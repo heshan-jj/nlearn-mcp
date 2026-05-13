@@ -1,10 +1,27 @@
 import logging
+from pathlib import Path
+import tempfile
+import uuid
 from bs4 import BeautifulSoup
 
 from auth.session import session_scope
 from utils.pdf_parser import parse_pdf_content
 
 logger = logging.getLogger(__name__)
+
+DEBUG_DIR = Path(tempfile.gettempdir()) / "debug"
+
+
+def _save_debug_text(context: str, text: str, *, max_chars: int = 200_000) -> None:
+    """Save debug HTML/text into temp `debug/` dir for troubleshooting."""
+    try:
+        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+        fname = f"{context}_{uuid.uuid4().hex}.html"
+        path = DEBUG_DIR / fname
+        path.write_text(text[:max_chars], encoding="utf-8", errors="replace")
+        logger.info("Saved debug artifact: %s", path)
+    except Exception as e:
+        logger.warning("Failed to save debug artifact (%s): %s", context, e)
 
 def fetch_assignment_pdf_text(assignment_url: str) -> str:
     """
@@ -18,6 +35,11 @@ def fetch_assignment_pdf_text(assignment_url: str) -> str:
         try:
             response.raise_for_status()
         except Exception as e:
+            logger.error(
+                "Failed fetching assignment page (first 2000 chars): %s",
+                getattr(response, "text", "")[:2000],
+            )
+            _save_debug_text("assignment_page_fetch_failed", getattr(response, "text", ""))
             return f"Failed to fetch assignment page: {e}"
         
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -37,6 +59,11 @@ def fetch_assignment_pdf_text(assignment_url: str) -> str:
                     
         if not pdf_links:
             # Some assignment attachments might be embedded differently, but usually they are <a> tags.
+            logger.error(
+                "No PDF attachments found (first 2000 chars): %s",
+                response.text[:2000],
+            )
+            _save_debug_text("assignment_no_pdfs_found", response.text)
             return "No PDF attachments found on the assignment page. The assignment brief might be directly in the HTML or in a different format."
             
         results = []

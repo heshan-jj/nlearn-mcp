@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from bs4 import BeautifulSoup
@@ -14,6 +15,91 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 COOKIES_FILE = Path(__file__).parent / "cookies.json"
+
+
+class RetryingClient:
+    """
+    Thin wrapper around `httpx.Client` that retries transient failures.
+
+    This keeps scraper code unchanged (they already use `client.get`/`client.post`)
+    while making requests more resilient to flaky NLearn/Moodle behavior.
+    """
+
+    def __init__(
+        self,
+        client: httpx.Client,
+        *,
+        attempts: int = 3,
+        backoff_factor_s: float = 0.75,
+        max_delay_s: float = 6.0,
+    ):
+        self._client = client
+        self._attempts = attempts
+        self._backoff_factor_s = backoff_factor_s
+        self._max_delay_s = max_delay_s
+
+    @property
+    def cookies(self):
+        return self._client.cookies
+
+    def close(self) -> None:
+        self._client.close()
+
+    def __getattr__(self, item):
+        return getattr(self._client, item)
+
+    def _should_retry_response(self, response: httpx.Response) -> bool:
+        # Retry on rate limit and server errors.
+        return response.status_code == 429 or response.status_code >= 500
+
+    def _sleep_before_retry(self, attempt: int) -> None:
+        # Exponential backoff: backoff_factor * 2^(attempt-1)
+        delay_s = self._backoff_factor_s * (2 ** (attempt - 1))
+        time.sleep(min(delay_s, self._max_delay_s))
+
+    def request(self, method: str, url: str, **kwargs) -> httpx.Response:
+        last_exc: Exception | None = None
+
+        for attempt in range(1, self._attempts + 1):
+            try:
+                resp = self._client.request(method, url, **kwargs)
+                if self._should_retry_response(resp) and attempt < self._attempts:
+                    logger.warning(
+                        "Request got retryable response (status=%s) attempt=%s/%s: %s",
+                        resp.status_code,
+                        attempt,
+                        self._attempts,
+                        url,
+                    )
+                    self._sleep_before_retry(attempt)
+                    continue
+
+                return resp
+            except httpx.RequestError as e:
+                last_exc = e
+                if attempt >= self._attempts:
+                    raise
+
+                logger.warning(
+                    "Request failed (attempt=%s/%s) %s %s: %s",
+                    attempt,
+                    self._attempts,
+                    method,
+                    url,
+                    str(e),
+                )
+                self._sleep_before_retry(attempt)
+
+        # Should be unreachable; re-raise last exception if something went wrong.
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("RetryingClient.request exhausted retries without error.")
+
+    def get(self, url: str, **kwargs) -> httpx.Response:
+        return self.request("GET", url, **kwargs)
+
+    def post(self, url: str, **kwargs) -> httpx.Response:
+        return self.request("POST", url, **kwargs)
 
 def get_base_url():
     url = os.environ.get("NLEARN_URL")
@@ -134,9 +220,10 @@ def session_scope():
     Yields an httpx.Client with valid cookies; closes the client when done.
     """
     client = httpx.Client()
+    retry_client = RetryingClient(client)
     try:
-        _ensure_authenticated(client)
-        yield client
+        _ensure_authenticated(retry_client)
+        yield retry_client
     finally:
         client.close()
 
