@@ -1,16 +1,17 @@
+import datetime
 from typing import List, Dict, Any
-import time
 from scrapers.timeline import get_deadlines as fetch_deadlines, get_past_events as fetch_past_events
 
 
 def _deadline_to_dict(d) -> Dict[str, Any]:
     """Convert a Deadline dataclass instance to a plain dict for tool output."""
+    dt = datetime.datetime.fromtimestamp(d.due_date, tz=datetime.timezone.utc)
     return {
         "id": d.id,
         "name": d.name,
         "course_name": d.course_name,
         "due_date_unix": d.due_date,
-        "due_date_iso": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(d.due_date)),
+        "due_date_iso": dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "url": d.url,
         "action_name": d.action_name,
         "action_url": d.action_url,

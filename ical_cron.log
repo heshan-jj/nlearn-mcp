@@ -1,0 +1,22 @@
+[Wed 05/13/2026 14:06:12.06] Running NLearn iCal generator... 
+2026-05-13 14:06:12,387 INFO Fetching deadlines for the next 30 days...
+2026-05-13 14:06:16,338 INFO Loaded cached cookies. Validating session...
+2026-05-13 14:06:16,831 INFO HTTP Request: GET https://nlearn.nsbm.ac.lk/my/ "HTTP/1.1 200 OK"
+2026-05-13 14:06:16,880 INFO Session is valid.
+2026-05-13 14:06:16,880 INFO Fetching dashboard to retrieve sesskey...
+2026-05-13 14:06:17,139 INFO HTTP Request: GET https://nlearn.nsbm.ac.lk/my/ "HTTP/1.1 200 OK"
+2026-05-13 14:06:17,171 INFO Found sesskey: VnowGM7qOA
+2026-05-13 14:06:17,171 INFO Fetching active courses...
+2026-05-13 14:06:17,208 INFO HTTP Request: POST https://nlearn.nsbm.ac.lk/lib/ajax/service.php?sesskey=VnowGM7qOA&info=core_course_get_enrolled_courses_by_timeline_classification "HTTP/1.1 200 OK"
+2026-05-13 14:06:17,216 INFO Found 7 active courses.
+2026-05-13 14:06:17,216 INFO Fetching timeline events...
+2026-05-13 14:06:17,266 INFO HTTP Request: POST https://nlearn.nsbm.ac.lk/lib/ajax/service.php?sesskey=VnowGM7qOA&info=core_calendar_get_action_events_by_timesort "HTTP/1.1 200 OK"
+2026-05-13 14:06:17,268 INFO Found 1 deadline(s).
+2026-05-13 14:06:17,272 INFO Written to D:\Work\Code\GitHubRepos\nlearn mcp\deadlines.ics
+  [2026-05-19 12:54] SE102.3-Web Application Development: Inclass Activity 02  is due
+[master 7141a3c] chore: update deadlines.ics [skip ci]
+ 1 file changed, 29 insertions(+)
+ create mode 100644 deadlines.ics
+To https://github.com/heshan-jj/nlearn-mcp.git
+   84f68ee..7141a3c  master -> master
+[Wed 05/13/2026 14:06:17.48] Pushed updated deadlines.ics 

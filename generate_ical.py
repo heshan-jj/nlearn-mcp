@@ -2,7 +2,9 @@
 generate_ical.py
 ----------------
 Fetches upcoming NLearn/Moodle deadlines and writes them to `deadlines.ics`
-in iCalendar format. Intended to be run by the GitHub Action on a schedule.
+in iCalendar format. Run locally via Windows Task Scheduler every 6 hours;
+the resulting file is committed and pushed to GitHub, where GitHub Pages
+serves it as a live iCal feed for Google Calendar.
 
 Usage:
     python generate_ical.py [--days 30] [--output deadlines.ics]
@@ -11,11 +13,11 @@ Usage:
 import argparse
 import logging
 import time
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
+from scrapers.timeline import get_deadlines
 
 load_dotenv()
 
@@ -48,18 +50,18 @@ def _fold(line: str) -> str:
     iCal line folding: lines longer than 75 octets must be split.
     Continuation lines begin with a single whitespace character.
     """
-    MAX = 75
-    if len(line.encode("utf-8")) <= MAX:
+    max_len = 75
+    if len(line.encode("utf-8")) <= max_len:
         return line
 
     chunks = []
     current = ""
     for char in line:
         candidate = current + char
-        if len(candidate.encode("utf-8")) > MAX:
+        if len(candidate.encode("utf-8")) > max_len:
             chunks.append(current)
             current = " " + char  # folded continuation
-            MAX = 74  # continuation lines are one char shorter
+            max_len = 74          # continuation lines are one char shorter
         else:
             current = candidate
     if current:
@@ -101,7 +103,7 @@ def build_ical(deadlines, days: int) -> str:
             f"UID:{uid}",
             f"DTSTAMP:{now}",
             f"DTSTART:{dt_due}",
-            f"DTEND:{dt_due}",        # point-in-time event (due date = start = end)
+            f"DTEND:{dt_due}",   # point-in-time event (due date = start = end)
             _fold(f"SUMMARY:{summary}"),
             _fold(f"DESCRIPTION:{description}"),
             _fold(f"URL:{action_link}"),
@@ -126,10 +128,7 @@ def main():
     args = parser.parse_args()
 
     logger.info(f"Fetching deadlines for the next {args.days} days...")
-
-    from scrapers.timeline import get_deadlines
     deadlines = get_deadlines(days=args.days)
-
     logger.info(f"Found {len(deadlines)} deadline(s).")
 
     ical_content = build_ical(deadlines, days=args.days)
@@ -138,7 +137,6 @@ def main():
     output_path.write_text(ical_content, encoding="utf-8")
     logger.info(f"Written to {output_path.resolve()}")
 
-    # Print a summary
     for d in deadlines:
         due = time.strftime("%Y-%m-%d %H:%M", time.localtime(d.due_date))
         print(f"  [{due}] {d.course_name}: {d.name}")

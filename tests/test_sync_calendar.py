@@ -26,7 +26,7 @@ class TestSyncCalendar(unittest.TestCase):
         self.assertEqual(len(result), 1)
         item = result[0]
 
-        expected_iso = datetime.datetime.fromtimestamp(due).strftime("%Y-%m-%dT%H:%M:%S")
+        expected_iso = datetime.datetime.fromtimestamp(due, tz=datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         self.assertEqual(item["due_date"], expected_iso)
         self.assertEqual(item["reminder_minutes"], 1440)
         self.assertIn("Course: CS101", item["description"])
