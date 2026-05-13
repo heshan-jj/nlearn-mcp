@@ -1,0 +1,29 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//nlearn-mcp//NLearn Sentinel//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+X-WR-CALNAME:NLearn Deadlines (30d)
+X-WR-TIMEZONE:UTC
+X-WR-CALDESC:Upcoming assignment deadlines from NLearn/Moodle
+REFRESH-INTERVAL;VALUE=DURATION:PT6H
+X-PUBLISHED-TTL:PT6H
+BEGIN:VEVENT
+UID:nlearn-53354@nlearn-mcp
+DTSTAMP:20260513T083617Z
+DTSTART:20260519T072400Z
+DTEND:20260519T072400Z
+SUMMARY:SE102.3-Web Application Development – Inclass Activity 02  is due
+DESCRIPTION:Course: SE102.3-Web Application Development\nTask: Inclass Acti
+ vity 02  is due\nAction: Add submission\nLink: https://nlearn.nsbm.ac.lk/
+ mod/assign/view.php?id=128467&action=editsubmission
+URL:https://nlearn.nsbm.ac.lk/mod/assign/view.php?id=128467&action=editsubm
+ ission
+BEGIN:VALARM
+TRIGGER:-PT24H
+ACTION:DISPLAY
+DESCRIPTION:Due tomorrow: SE102.3-Web Application Development – Inclass A
+ ctivity 02  is due
+END:VALARM
+END:VEVENT
+END:VCALENDAR
