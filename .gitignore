@@ -2,3 +2,4 @@ auth/cookies.json
 __pycache__/
 *.pyc
 .env
+ical_cron.log
