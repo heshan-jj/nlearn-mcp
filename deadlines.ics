@@ -10,20 +10,22 @@ REFRESH-INTERVAL;VALUE=DURATION:PT6H
 X-PUBLISHED-TTL:PT6H
 BEGIN:VEVENT
 UID:nlearn-53354@nlearn-mcp
-DTSTAMP:20260513T090708Z
+DTSTAMP:20260513T101633Z
 DTSTART:20260519T072400Z
 DTEND:20260519T072400Z
-SUMMARY:SE102.3-Web Application Development – Inclass Activity 02  is due
+SUMMARY:SE102.3-Web Application Development – Inclass Activity 02 - Creat
+ e the Webpage with Animations is due
 DESCRIPTION:Course: SE102.3-Web Application Development\nTask: Inclass Acti
- vity 02  is due\nAction: Add submission\nLink: https://nlearn.nsbm.ac.lk/
- mod/assign/view.php?id=128467&action=editsubmission
+ vity 02 - Create the Webpage with Animations is due\nAction: Add submissi
+ on\nLink: https://nlearn.nsbm.ac.lk/mod/assign/view.php?id=128467&action=
+ editsubmission
 URL:https://nlearn.nsbm.ac.lk/mod/assign/view.php?id=128467&action=editsubm
  ission
 BEGIN:VALARM
 TRIGGER:-PT24H
 ACTION:DISPLAY
 DESCRIPTION:Due tomorrow: SE102.3-Web Application Development – Inclass A
- ctivity 02  is due
+ ctivity 02 - Create the Webpage with Animations is due
 END:VALARM
 END:VEVENT
 END:VCALENDAR
