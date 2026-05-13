@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from contextlib import contextmanager
 from pathlib import Path
 from bs4 import BeautifulSoup
 import httpx
@@ -97,47 +98,49 @@ def login(client: httpx.Client, base_url: str):
     logger.info("Submitting login credentials...")
     post_response = client.post(login_url, data=payload, follow_redirects=True)
     post_response.raise_for_status()
-    
-    # Verify login success by checking if we are still on the login page
-    if "logintoken" in post_response.text and "Invalid login" in post_response.text:
-        raise Exception("Login failed: Invalid credentials")
-        
-    # Also verify cookies
-    has_moodle_session = "MoodleSession" in client.cookies
-    if not has_moodle_session:
-        logger.warning("MoodleSession cookie not found after login. Login might have failed.")
+
+    if "login/index.php" in str(post_response.url):
+        raise Exception("Login failed: still on login page after POST")
+
+    if "MoodleSession" not in client.cookies:
+        raise Exception("Login failed: MoodleSession cookie not set")
     
     save_cookies(client)
     logger.info("Login successful")
 
-def get_session() -> httpx.Client:
-    """
-    Returns a live httpx.Client with valid cookies from cache or fresh login.
-    """
+def _ensure_authenticated(client: httpx.Client) -> None:
+    """Populate client cookies so requests run as a logged-in session."""
     base_url = get_base_url()
-    client = httpx.Client()
-    
-    # Try loading cookies
+
     cookies = load_cookies()
     if cookies:
         client.cookies.update(cookies)
         logger.info("Loaded cached cookies. Validating session...")
-        
+
         if validate_session(client, base_url):
             logger.info("Session is valid.")
-            return client
-        else:
-            logger.info("Session is dead. Re-authenticating...")
+            return
+
+        logger.info("Session is dead. Re-authenticating...")
     else:
         logger.info("No cached cookies found. Authenticating...")
-        
-    # Clear any stale cookies before re-login
+
     client.cookies.clear()
     login(client, base_url)
-    
-    return client
+
+@contextmanager
+def session_scope():
+    """
+    Yields an httpx.Client with valid cookies; closes the client when done.
+    """
+    client = httpx.Client()
+    try:
+        _ensure_authenticated(client)
+        yield client
+    finally:
+        client.close()
 
 if __name__ == "__main__":
     # Test the session logic
-    session = get_session()
-    print("Session ready. Cookies:", dict(session.cookies))
+    with session_scope() as session:
+        print("Session ready. Cookies:", dict(session.cookies))

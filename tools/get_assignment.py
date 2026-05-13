@@ -1,4 +1,5 @@
 from scrapers.assignments import fetch_assignment_pdf_text
+from auth.session import get_base_url
 
 def get_assignment(assignment_url: str) -> str:
     """
@@ -10,4 +11,8 @@ def get_assignment(assignment_url: str) -> str:
     Returns:
         str: The raw text extracted from the assignment brief PDF, preserving formatting as much as possible.
     """
-    return fetch_assignment_pdf_text(assignment_url)
+    base_url = get_base_url()
+    url = assignment_url.strip()
+    if not url.startswith(base_url):
+        return f"Error: URL must be from {base_url}"
+    return fetch_assignment_pdf_text(url)

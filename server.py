@@ -1,6 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from tools.get_deadlines import get_upcoming_deadlines, get_past_deadlines
 from tools.get_assignment import get_assignment
+from tools.sync_calendar import get_deadlines_for_sync
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -12,6 +13,7 @@ mcp = FastMCP("NLearn Sentinel")
 mcp.tool()(get_upcoming_deadlines)
 mcp.tool()(get_past_deadlines)
 mcp.tool()(get_assignment)
+mcp.tool()(get_deadlines_for_sync)
 
 if __name__ == "__main__":
     # Start the server using stdin/stdout
