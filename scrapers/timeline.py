@@ -145,7 +145,12 @@ def _get_active_course_ids(client, base_url: str, sesskey: str) -> Set[int]:
 
     return active_course_ids
 
-def get_deadlines(days: int = 14) -> List[Deadline]:
+def _fetch_deadlines_from_api(days: int, is_past: bool = False) -> List[Deadline]:
+    """
+    Helper function to authenticate and fetch deadlines/calendar events from Moodle AJAX API.
+    Handles the common login flow, active course verification, AJAX payload structure,
+    and event filtering/parsing logic.
+    """
     with session_scope() as client:
         base_url = get_base_url()
         
@@ -157,25 +162,35 @@ def get_deadlines(days: int = 14) -> List[Deadline]:
         # Fetch active courses to filter by
         logger.info("Fetching active courses...")
         active_course_ids = _get_active_course_ids(client, base_url, sesskey)
-                
         logger.info(f"Found {len(active_course_ids)} active courses.")
         
-        # 2. Fetch timeline events via Moodle's AJAX API
+        # 2. Fetch events via Moodle's AJAX API
         ajax_url = f"{base_url}/lib/ajax/service.php?sesskey={sesskey}&info=core_calendar_get_action_events_by_timesort"
-        
         current_time = int(time.time())
+        window_seconds = days * 24 * 60 * 60
         
+        if is_past:
+            timesortfrom = current_time - window_seconds
+            timesortto = current_time
+        else:
+            timesortfrom = current_time
+            timesortto = None
+            
+        args = {
+            "limitnum": 50,
+            "timesortfrom": timesortfrom,
+            "limittononsuspendedevents": True
+        }
+        if timesortto is not None:
+            args["timesortto"] = timesortto
+            
         payload = [{
             "index": 0,
             "methodname": "core_calendar_get_action_events_by_timesort",
-            "args": {
-                "limitnum": 50,
-                "timesortfrom": current_time,
-                "limittononsuspendedevents": True
-            }
+            "args": args
         }]
         
-        logger.info("Fetching timeline events...")
+        logger.info(f"Fetching timeline events (is_past={is_past})...")
         ajax_resp = client.post(ajax_url, json=payload)
         ajax_resp.raise_for_status()
         ajax_resp_text = ajax_resp.text
@@ -187,23 +202,24 @@ def get_deadlines(days: int = 14) -> List[Deadline]:
             return []
             
         events = data[0]['data']['events']
-        
         deadlines = []
-        end_time = current_time + (days * 24 * 60 * 60)
         
         for event in events:
             due_date = event.get('timesort', 0)
             
-            # Filter by configurable window
-            if due_date > end_time:
-                continue
-                
+            # Python-side validation to ensure timing window bounds
+            if is_past:
+                if due_date < timesortfrom:
+                    continue
+            else:
+                end_time = current_time + window_seconds
+                if due_date > end_time:
+                    continue
+                    
             course = event.get('course', {})
             course_id = course.get('id')
             
             # Filter out events from non-active (hidden/past) courses
-            # If the user has a lot of missed stuff from older courses, they might want this disabled.
-            # For now, we'll keep it but the 180 day window will catch more.
             if active_course_ids and course_id not in active_course_ids:
                 continue
                 
@@ -222,69 +238,19 @@ def get_deadlines(days: int = 14) -> List[Deadline]:
             
         return deadlines
 
+
+def get_deadlines(days: int = 14) -> List[Deadline]:
+    """
+    Get upcoming deadlines from the user's NLearn/Moodle dashboard.
+    """
+    return _fetch_deadlines_from_api(days=days, is_past=False)
+
+
 def get_past_events(days: int = 60) -> List[Deadline]:
-    with session_scope() as client:
-        base_url = get_base_url()
-        
-        # 1. Fetch dashboard to grab sesskey
-        sesskey = _get_sesskey(client, base_url)
-        
-        # Fetch active courses to filter by
-        logger.info("Fetching active courses...")
-        active_course_ids = _get_active_course_ids(client, base_url, sesskey)
-
-        # 2. Fetch past events
-        current_time = int(time.time())
-        start_time = current_time - (days * 24 * 60 * 60)
-        
-        ajax_url = f"{base_url}/lib/ajax/service.php?sesskey={sesskey}&info=core_calendar_get_action_events_by_timesort"
-        payload = [{
-            "index": 0,
-            "methodname": "core_calendar_get_action_events_by_timesort",
-            "args": {
-                "limitnum": 50,
-                "timesortfrom": start_time,
-                "timesortto": current_time,
-                "limittononsuspendedevents": True
-            }
-        }]
-        
-        logger.info(f"Fetching past events from the last {days} days...")
-        ajax_resp = client.post(ajax_url, json=payload)
-        ajax_resp.raise_for_status()
-        ajax_resp_text = ajax_resp.text
-        data = ajax_resp.json()
-        
-        if not data or data[0].get('error'):
-            return []
-            
-        events = data[0]['data']['events']
-        deadlines = []
-        
-        for event in events:
-            due_date = event.get('timesort', 0)
-            
-            # Filter by window in Python
-            if due_date < start_time:
-                continue
-
-            course_id = event.get('course', {}).get('id')
-            if active_course_ids and course_id not in active_course_ids:
-                continue
-                
-            action = event.get('action', {})
-            deadline = Deadline(
-                id=event.get('id'),
-                name=event.get('name', ''),
-                course_name=event.get('course', {}).get('fullname', 'Unknown Course'),
-                due_date=due_date,
-                url=event.get('url', ''),
-                action_name=action.get('name') if action else None,
-                action_url=action.get('url') if action else None
-            )
-            deadlines.append(deadline)
-            
-        return deadlines
+    """
+    Get past/missed deadlines from the user's NLearn/Moodle dashboard.
+    """
+    return _fetch_deadlines_from_api(days=days, is_past=True)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

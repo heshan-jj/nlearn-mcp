@@ -1,58 +1,91 @@
-# nlearn-mcp
+# NLearn MCP (NLearn Sentinel)
 
-MCP server for integrating your NLearn / Moodle account with Claude (via FastMCP).
+[![Python Tests](https://github.com/heshan-jj/nlearn-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/heshan-jj/nlearn-mcp/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![MCP Compatible](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io)
 
-## What it does
+An Model Context Protocol (MCP) server for integrating your Moodle-based academic dashboard (NLearn) with Claude and other LLM clients. Built on [FastMCP](https://github.com/modelcontextprotocol/python-sdk).
 
-- Authenticates to Moodle using username/password and a cached cookie jar (`auth/cookies.json`).
-- Scrapes your course timeline via Moodle AJAX endpoints to produce:
-  - upcoming deadlines
-  - past/missed deadlines
-  - calendar-ready sync items
-- Fetches assignment PDFs and extracts their text.
-- Provides an on-demand `refresh_session` tool if your cookie session expires mid-day.
+---
 
-## Setup
+## ✨ Features
 
-1. Install Python 3.10+.
-2. Copy `.env.example` to `.env` and fill in values.
-3. Install dependencies:
-   - Using `uv` (recommended if you have it):
-     - `uv sync`
-   - Or with pip:
-     - `pip install -e .`
-4. Start the MCP server:
-   - `python server.py`
+- **Automated Authentication**: Seamless login to Moodle using credentials and secure, cached cookie jars (`auth/cookies.json`).
+- **Timeline Scraping**: Scrapes Moodle's internal AJAX endpoints to fetch upcoming and past deadlines without requiring a native Moodle REST API token.
+- **PDF Brief Extraction**: Automatically downloads course/assignment brief PDFs and extracts their text layouts, making assignment details instantly available to Claude.
+- **Google Calendar Ready**: Special tool formatting that outputs structured events ready for Claude to insert into your Google Calendar.
+- **On-demand Refresh**: Dedicated `refresh_session` tool to re-authenticate on the fly if a session expires during use.
+- **Local iCal Sync Feed**: Export deadlines to an `.ics` file locally, ready for hosting/publishing.
 
-## Environment variables
+---
 
-See `.env.example` for required variables.
+## 🔒 Security & Safe-to-Run Guarantees
 
-## Connect to Claude Desktop
+When using AI agents like Claude to navigate web pages, security is paramount. NLearn MCP implements:
+- **SSRF / Prompt Injection Protection**: The `get_assignment` tool parses and strictly validates any input URL before performing HTTP requests. It restricts requests to the hostname configured in your `.env` (`NLEARN_URL`), preventing malicious instructions from causing Server-Side Request Forgery.
+- **Credential Safety**: Session cookies are stored locally in the `auth` directory. The project is pre-configured with a `.gitignore` to prevent committing your password or cookies to source control.
 
-Create/adjust your `claude_desktop_config.json` to start the MCP server process.
-Example:
+---
+
+## 🚀 Setup
+
+### 1. Prerequisites
+- Python 3.10+
+- [uv](https://github.com/astral-sh/uv) (recommended) or `pip`
+
+### 2. Install & Configure
+
+Clone the repository and copy the environment template:
+```bash
+git clone https://github.com/heshan-jj/nlearn-mcp.git
+cd nlearn-mcp
+cp .env.example .env
+```
+
+Open `.env` and fill in your details:
+```env
+NLEARN_URL="https://moodle.your-university.edu"
+NLEARN_USERNAME="your_username"
+NLEARN_PASSWORD="your_password"
+```
+
+### 3. Install Dependencies
+
+#### Using `uv` (Recommended):
+```bash
+uv sync
+```
+
+#### Using `pip`:
+```bash
+pip install -e .
+```
+
+---
+
+## 🔌 Connection to Claude Desktop
+
+Add `nlearn-mcp` to your `claude_desktop_config.json` configuration file:
 
 ```json
 {
   "mcpServers": {
     "nlearn-mcp": {
       "command": "python",
-      "args": ["server.py"]
+      "args": ["/path/to/nlearn-mcp/server.py"]
     }
   }
 }
 ```
 
-If your OS requires passing env vars explicitly to the process, set them in your launcher
-environment or extend the config with an `env` block (shape depends on your Claude Desktop version).
+*Note: Replace `/path/to/nlearn-mcp/` with the absolute path of your local clone. On Windows, make sure to escape backslashes or use quotes appropriately.*
 
-## MCP tools
+---
 
-### `get_upcoming_deadlines(days: number = 14)`
+## 🛠️ MCP Tools Exposed
 
-Returns structured data:
-
+### 📅 `get_upcoming_deadlines(days: int = 14)`
+Returns upcoming academic tasks:
 ```json
 {
   "window_days": 14,
@@ -60,55 +93,62 @@ Returns structured data:
   "has_deadlines": true,
   "deadlines": [
     {
-      "id": 123,
-      "name": "Homework 1",
-      "course_name": "CS101",
+      "id": 12345,
+      "name": "Midterm Assignment Submission",
+      "course_name": "CS301 - Advanced Algorithms",
       "due_date_unix": 1750000000,
-      "due_date_iso": "2026-05-20T12:00:00",
-      "url": "https://.../pluginfile.php/.../some.pdf",
-      "action_name": "Turn in",
-      "action_url": null
+      "due_date_iso": "2026-05-20T12:00:00Z",
+      "url": "https://moodle.your-university.edu/mod/assign/view.php?id=123",
+      "action_name": "Add submission",
+      "action_url": "https://moodle.your-university.edu/mod/assign/view.php?id=123&action=editsubmission"
     }
   ]
 }
 ```
 
-### `get_past_deadlines(days: number = 60)`
+### 🗓️ `get_past_deadlines(days: int = 60)`
+Same structured shape as `get_upcoming_deadlines`, but pulls calendar activities from the past window.
 
-Same shape as `get_upcoming_deadlines`, but pulls actions from the past window.
-
-### `get_deadlines_for_sync(days: number = 14)`
-
-Returns a list of calendar-ready items (suitable for Claude to sync into Google Calendar):
-
+### 🔄 `get_deadlines_for_sync(days: int = 14)`
+Returns a calendar-ready array optimized for Claude to interact with Google Calendar:
 ```json
 [
   {
-    "title": "CS101 - Homework 1",
-    "due_date": "2026-05-20T12:00:00",
-    "course": "CS101",
-    "description": "Course: CS101\nTask: Homework 1\nSubmit via NLearn. Link: https://...",
+    "title": "CS301 - Midterm Assignment Submission",
+    "due_date": "2026-05-20T12:00:00Z",
+    "course": "CS301 - Advanced Algorithms",
+    "description": "Course: CS301 - Advanced Algorithms\nTask: Midterm Assignment Submission\nSubmit via NLearn. Link: https://...",
     "reminder_minutes": 1440
   }
 ]
 ```
 
-### `get_assignment(assignment_url: string)`
+### 📄 `get_assignment(assignment_url: str)`
+Downloads the Moodle assignment page, detects PDF attachment briefs, and returns the extracted text layout.
+*Enforces base URL validation check to prevent SSRF.*
 
-Downloads the assignment page, finds PDF attachments, extracts their text, and returns the
-combined extracted text as a string.
+### 🔑 `refresh_session()`
+Deletes cached cookies (`auth/cookies.json`) and forces a new login on the next execution.
 
-Important: the URL is validated to belong to your configured `NLEARN_URL` to reduce SSRF risk.
+---
 
-### `refresh_session()`
+## 🛠️ Calendar Generation (Local iCal Feed)
 
-Clears the cached cookies (`auth/cookies.json`) and forces a new login on next request.
-Useful if your session expires while Claude is running.
+If you wish to export a live iCal calendar feed:
+1. Run the local generation script:
+   ```bash
+   python generate_ical.py --days 30 --output deadlines.ics
+   ```
+2. For Windows users, a portable scheduler helper is provided in `run_ical.bat`. Run this periodically (e.g. via Windows Task Scheduler) to automatically update `deadlines.ics` and push updates to your personal repo, letting GitHub Pages host the live iCal link for Google Calendar/Outlook.
 
-## Debug artifacts
+---
 
-When scraping fails to find expected HTML/data (e.g., missing `sesskey` or no PDF links),
-the scrapers save debug HTML snippets into a temporary directory:
+## 🤝 Contributing
 
-- `Temp/debug/` (system temp path; on Windows this is typically under `%TEMP%`)
+Contributions are welcome! Please check out [CONTRIBUTING.md](CONTRIBUTING.md) to learn how to run tests, format code, and submit Pull Requests.
 
+---
+
+## 📄 License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

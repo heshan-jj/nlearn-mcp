@@ -1,5 +1,5 @@
 @echo off
-cd /d "D:\Work\Code\GitHubRepos\nlearn mcp"
+cd /d "%~dp0"
 
 echo [%date% %time%] Running NLearn iCal generator... >> ical_cron.log 2>&1
 
