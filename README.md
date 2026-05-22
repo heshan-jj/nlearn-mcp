@@ -44,10 +44,12 @@ cp .env.example .env
 
 Open `.env` and fill in your details:
 ```env
-NLEARN_URL="https://moodle.your-university.edu"
+NLEARN_URL="https://nlearn.nsbm.ac.lk"
 NLEARN_USERNAME="your_username"
 NLEARN_PASSWORD="your_password"
 ```
+
+> **Note**: If your NLearn instance uses complex SSO (Single Sign-On) or blocks automated logins, you might need to manually configure `auth/cookies.json`. To do this, copy your active browser session cookies (such as `MoodleSession` and `MOODLEID1_`) and save them as a JSON object in `auth/cookies.json`.
 
 ### 3. Install Dependencies
 
