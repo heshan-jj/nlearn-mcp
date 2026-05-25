@@ -8,4 +8,24 @@ X-WR-TIMEZONE:UTC
 X-WR-CALDESC:Upcoming assignment deadlines from NLearn/Moodle
 REFRESH-INTERVAL;VALUE=DURATION:PT6H
 X-PUBLISHED-TTL:PT6H
+BEGIN:VEVENT
+UID:nlearn-54056@nlearn-mcp
+DTSTAMP:20260525T040646Z
+DTSTART:20260525T053000Z
+DTEND:20260525T053000Z
+SUMMARY:CS201.3-Operating Systems – Assignment 03 - OS - CPU Scheduling A
+ lgorithms - (7 Marks)  is due
+DESCRIPTION:Course: CS201.3-Operating Systems\nTask: Assignment 03 - OS - C
+ PU Scheduling Algorithms - (7 Marks)  is due\nAction: Add submission\nLin
+ k: https://nlearn.nsbm.ac.lk/mod/assign/view.php?id=129841&action=editsub
+ mission
+URL:https://nlearn.nsbm.ac.lk/mod/assign/view.php?id=129841&action=editsubm
+ ission
+BEGIN:VALARM
+TRIGGER:-PT24H
+ACTION:DISPLAY
+DESCRIPTION:Due tomorrow: CS201.3-Operating Systems – Assignment 03 - OS 
+ - CPU Scheduling Algorithms - (7 Marks)  is due
+END:VALARM
+END:VEVENT
 END:VCALENDAR
