@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 from scrapers.timeline import get_deadlines
+from utils.validation import validate_days
 
 
 def get_deadlines_for_sync(days: int = 14) -> List[Dict[str, Any]]:
@@ -19,6 +20,7 @@ def get_deadlines_for_sync(days: int = 14) -> List[Dict[str, Any]]:
             - description
             - reminder_minutes
     """
+    days = validate_days(days)
     deadlines = get_deadlines(days=days)
 
     return [

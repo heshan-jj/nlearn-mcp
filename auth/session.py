@@ -8,7 +8,8 @@ from bs4 import BeautifulSoup
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / ".env")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -124,8 +125,14 @@ def save_cookies(client: httpx.Client):
     
     try:
         COOKIES_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(COOKIES_FILE, "w") as f:
+        tmp_file = COOKIES_FILE.with_suffix(".json.tmp")
+        with open(tmp_file, "w") as f:
             json.dump(cookies_to_save, f)
+        os.replace(tmp_file, COOKIES_FILE)
+        try:
+            os.chmod(COOKIES_FILE, 0o600)
+        except OSError:
+            logger.debug("Could not set restrictive cookie file permissions.", exc_info=True)
         logger.info("Session cookies saved successfully.")
     except Exception as e:
         logger.error(f"Failed to save cookies: {e}")
@@ -136,8 +143,11 @@ def validate_session(client: httpx.Client, base_url: str) -> bool:
         # A lightweight probe to check if we are logged in.
         # usually accessing the dashboard or user profile works.
         response = client.get(f"{base_url}/my/", follow_redirects=False)
-        # If we get redirected to login, session is dead.
-        if response.status_code in (302, 303) and "login" in response.headers.get("Location", ""):
+        # Any redirect during validation means Moodle did not serve the dashboard directly.
+        if 300 <= response.status_code < 400:
+            return False
+
+        if response.status_code >= 400:
             return False
         
         # Alternatively, check page content
@@ -186,10 +196,10 @@ def login(client: httpx.Client, base_url: str):
     post_response.raise_for_status()
 
     if "login/index.php" in str(post_response.url):
-        raise Exception("Login failed: still on login page after POST")
+        raise RuntimeError("Login failed: still on login page after POST")
 
     if "MoodleSession" not in client.cookies:
-        raise Exception("Login failed: MoodleSession cookie not set")
+        raise RuntimeError("Login failed: MoodleSession cookie not set")
     
     save_cookies(client)
     logger.info("Login successful")
@@ -219,7 +229,7 @@ def session_scope():
     """
     Yields an httpx.Client with valid cookies; closes the client when done.
     """
-    client = httpx.Client()
+    client = httpx.Client(timeout=httpx.Timeout(30.0, connect=10.0))
     retry_client = RetryingClient(client)
     try:
         _ensure_authenticated(retry_client)

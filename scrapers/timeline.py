@@ -3,17 +3,15 @@ import re
 from dataclasses import dataclass
 from typing import List, Optional, Set
 import logging
-from pathlib import Path
-import tempfile
-import uuid
 
 from auth.session import session_scope, get_base_url
+from utils.debug import save_debug_text
+from utils.validation import validate_days
 
 logger = logging.getLogger(__name__)
 
-DEBUG_DIR = Path(tempfile.gettempdir()) / "debug"
-
 _ACTIVE_COURSE_IDS_CACHE_TTL_S = 300  # 5 minutes
+TIMELINE_EVENT_LIMIT = 100
 # Keyed by (base_url, sesskey) because sesskey can change during an auth refresh.
 _ACTIVE_COURSE_IDS_CACHE: dict[tuple[str, str], tuple[float, Set[int]]] = {}
 
@@ -50,27 +48,11 @@ Endpoints in this file:
    - Payload methodname:
      `core_calendar_get_action_events_by_timesort`
    - Args used:
-     - `limitnum`: 50
+    - `limitnum`: 100
      - `timesortfrom`: unix timestamp (start)
      - `timesortto`: unix timestamp (end) [only for past events]
      - `limittononsuspendedevents`: True
 """
-
-
-def _save_debug_text(context: str, text: str, *, max_chars: int = 200_000) -> None:
-    """
-    Save scraper debug output into a temp `debug/` directory.
-
-    Intended for troubleshooting cases like "sesskey not found" or "scrape error".
-    """
-    try:
-        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-        fname = f"{context}_{int(time.time())}_{uuid.uuid4().hex}.html"
-        path = DEBUG_DIR / fname
-        path.write_text(text[:max_chars], encoding="utf-8", errors="replace")
-        logger.info("Saved debug artifact: %s", path)
-    except Exception as e:
-        logger.warning("Failed to save debug artifact (%s): %s", context, e)
 
 @dataclass
 class Deadline:
@@ -95,7 +77,7 @@ def _get_sesskey(client, base_url: str) -> str:
             "Could not find sesskey in dashboard HTML (first 2000 chars): %s",
             resp.text[:2000],
         )
-        _save_debug_text("dashboard_no_sesskey", resp.text)
+        save_debug_text("dashboard_no_sesskey", resp.text)
         raise ValueError("Could not find sesskey in dashboard HTML")
 
     return sesskey_match.group(1)
@@ -131,17 +113,26 @@ def _get_active_course_ids(client, base_url: str, sesskey: str) -> Set[int]:
     ac_data = ac_resp.json()
 
     active_course_ids: Set[int] = set()
-    if ac_data and not ac_data[0].get("error"):
-        for course in ac_data[0]["data"]["courses"]:
-            active_course_ids.add(course["id"])
-        # Cache successful fetches (even if the set is empty).
-        _ACTIVE_COURSE_IDS_CACHE[cache_key] = (time.time(), active_course_ids)
-    else:
+    if not isinstance(ac_data, list) or not ac_data or ac_data[0].get("error"):
         logger.error(
             "Error fetching active courses: %s",
             (ac_data[0].get("error") if ac_data and isinstance(ac_data, list) and ac_data else None),
         )
-        _save_debug_text("active_courses_error", ac_resp_text)
+        save_debug_text("active_courses_error", ac_resp_text)
+        raise RuntimeError("Failed to fetch active courses from Moodle")
+
+    courses = ac_data[0].get("data", {}).get("courses")
+    if not isinstance(courses, list):
+        save_debug_text("active_courses_unexpected_shape", ac_resp_text)
+        raise RuntimeError("Moodle active courses response had an unexpected shape")
+
+    for course in courses:
+        course_id = course.get("id") if isinstance(course, dict) else None
+        if course_id is not None:
+            active_course_ids.add(course_id)
+
+    # Cache successful fetches (even if the set is empty).
+    _ACTIVE_COURSE_IDS_CACHE[cache_key] = (time.time(), active_course_ids)
 
     return active_course_ids
 
@@ -151,13 +142,15 @@ def _fetch_deadlines_from_api(days: int, is_past: bool = False) -> List[Deadline
     Handles the common login flow, active course verification, AJAX payload structure,
     and event filtering/parsing logic.
     """
+    days = validate_days(days)
+
     with session_scope() as client:
         base_url = get_base_url()
         
         # 1. Fetch dashboard to grab sesskey
         logger.info("Fetching dashboard to retrieve sesskey...")
         sesskey = _get_sesskey(client, base_url)
-        logger.info(f"Found sesskey: {sesskey}")
+        logger.info("Found sesskey.")
         
         # Fetch active courses to filter by
         logger.info("Fetching active courses...")
@@ -177,7 +170,7 @@ def _fetch_deadlines_from_api(days: int, is_past: bool = False) -> List[Deadline
             timesortto = None
             
         args = {
-            "limitnum": 50,
+            "limitnum": TIMELINE_EVENT_LIMIT,
             "timesortfrom": timesortfrom,
             "limittononsuspendedevents": True
         }
@@ -196,15 +189,29 @@ def _fetch_deadlines_from_api(days: int, is_past: bool = False) -> List[Deadline
         ajax_resp_text = ajax_resp.text
         data = ajax_resp.json()
         
-        if not data or data[0].get('error'):
+        if not isinstance(data, list) or not data or data[0].get('error'):
             logger.error(f"Error fetching timeline: {data[0] if data else 'Empty response'}")
-            _save_debug_text("timeline_ajax_error", ajax_resp_text)
-            return []
+            save_debug_text("timeline_ajax_error", ajax_resp_text)
+            raise RuntimeError("Failed to fetch timeline events from Moodle")
             
-        events = data[0]['data']['events']
+        events = data[0].get("data", {}).get("events")
+        if not isinstance(events, list):
+            save_debug_text("timeline_unexpected_shape", ajax_resp_text)
+            raise RuntimeError("Moodle timeline response had an unexpected shape")
+
+        if len(events) >= TIMELINE_EVENT_LIMIT:
+            logger.warning(
+                "Moodle returned %s timeline events, which reaches the configured limit; results may be truncated.",
+                TIMELINE_EVENT_LIMIT,
+            )
+
         deadlines = []
         
         for event in events:
+            if not isinstance(event, dict):
+                logger.warning("Skipping timeline event with unexpected shape.")
+                continue
+
             due_date = event.get('timesort', 0)
             
             # Python-side validation to ensure timing window bounds
@@ -217,13 +224,17 @@ def _fetch_deadlines_from_api(days: int, is_past: bool = False) -> List[Deadline
                     continue
                     
             course = event.get('course', {})
+            if not isinstance(course, dict):
+                course = {}
             course_id = course.get('id')
             
             # Filter out events from non-active (hidden/past) courses
-            if active_course_ids and course_id not in active_course_ids:
+            if course_id not in active_course_ids:
                 continue
                 
             action = event.get('action', {})
+            if not isinstance(action, dict):
+                action = {}
             
             deadline = Deadline(
                 id=event.get('id'),

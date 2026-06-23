@@ -1,6 +1,7 @@
 import datetime
 from typing import List, Dict, Any
 from scrapers.timeline import get_deadlines as fetch_deadlines, get_past_events as fetch_past_events
+from utils.validation import validate_days
 
 
 def _deadline_to_dict(d) -> Dict[str, Any]:
@@ -24,6 +25,7 @@ def get_upcoming_deadlines(days: int = 14) -> Dict[str, Any]:
 
     Returns a dict with a summary and a list of deadline objects, so Claude can reason over them.
     """
+    days = validate_days(days)
     deadlines = fetch_deadlines(days=days)
 
     items: List[Dict[str, Any]] = [_deadline_to_dict(d) for d in deadlines]
@@ -42,6 +44,7 @@ def get_past_deadlines(days: int = 60) -> Dict[str, Any]:
 
     Returns a dict with a summary and a list of deadline objects.
     """
+    days = validate_days(days)
     deadlines = fetch_past_events(days=days)
 
     items: List[Dict[str, Any]] = [_deadline_to_dict(d) for d in deadlines]

@@ -1,27 +1,41 @@
 import logging
-from pathlib import Path
-import tempfile
-import uuid
+from urllib.parse import unquote, urljoin, urlsplit
 from bs4 import BeautifulSoup
 
-from auth.session import session_scope
+from auth.session import get_base_url, session_scope
+from utils.debug import save_debug_text
 from utils.pdf_parser import parse_pdf_content
+from utils.url_validation import url_belongs_to_instance
 
 logger = logging.getLogger(__name__)
 
-DEBUG_DIR = Path(tempfile.gettempdir()) / "debug"
+MAX_PDF_BYTES = 20 * 1024 * 1024
 
 
-def _save_debug_text(context: str, text: str, *, max_chars: int = 200_000) -> None:
-    """Save debug HTML/text into temp `debug/` dir for troubleshooting."""
-    try:
-        DEBUG_DIR.mkdir(parents=True, exist_ok=True)
-        fname = f"{context}_{uuid.uuid4().hex}.html"
-        path = DEBUG_DIR / fname
-        path.write_text(text[:max_chars], encoding="utf-8", errors="replace")
-        logger.info("Saved debug artifact: %s", path)
-    except Exception as e:
-        logger.warning("Failed to save debug artifact (%s): %s", context, e)
+def _pdf_filename(pdf_url: str) -> str:
+    filename = unquote(urlsplit(pdf_url).path.rstrip("/").split("/")[-1])
+    return filename or "assignment.pdf"
+
+
+def _discover_pdf_links(html: str, assignment_url: str, base_url: str) -> list[str]:
+    soup = BeautifulSoup(html, "html.parser")
+    pdf_links: list[str] = []
+
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        resolved_url = urljoin(assignment_url, href)
+        base_href = urlsplit(resolved_url).path.lower()
+        if not base_href.endswith(".pdf"):
+            continue
+
+        if not url_belongs_to_instance(resolved_url, base_url):
+            logger.warning("Skipping off-instance PDF attachment: %s", resolved_url)
+            continue
+
+        if resolved_url not in pdf_links:
+            pdf_links.append(resolved_url)
+
+    return pdf_links
 
 def fetch_assignment_pdf_text(assignment_url: str) -> str:
     """
@@ -29,6 +43,7 @@ def fetch_assignment_pdf_text(assignment_url: str) -> str:
     downloads them, and extracts their text.
     """
     with session_scope() as client:
+        base_url = get_base_url()
         
         logger.info(f"Fetching assignment page: {assignment_url}")
         response = client.get(assignment_url)
@@ -39,23 +54,10 @@ def fetch_assignment_pdf_text(assignment_url: str) -> str:
                 "Failed fetching assignment page (first 2000 chars): %s",
                 getattr(response, "text", "")[:2000],
             )
-            _save_debug_text("assignment_page_fetch_failed", getattr(response, "text", ""))
+            save_debug_text("assignment_page_fetch_failed", getattr(response, "text", ""))
             return f"Failed to fetch assignment page: {e}"
         
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        pdf_links = []
-        
-        # Search for PDF links
-        for a in soup.find_all('a', href=True):
-            href = a['href']
-            # Moodle attachment URLs often look like:
-            # https://moodle.../pluginfile.php/.../something.pdf
-            # https://moodle.../pluginfile.php/.../something.pdf?forcedownload=1
-            base_href = href.split('?')[0].lower()
-            if base_href.endswith('.pdf'):
-                if href not in pdf_links:
-                    pdf_links.append(href)
+        pdf_links = _discover_pdf_links(response.text, assignment_url, base_url)
                     
         if not pdf_links:
             # Some assignment attachments might be embedded differently, but usually they are <a> tags.
@@ -63,7 +65,7 @@ def fetch_assignment_pdf_text(assignment_url: str) -> str:
                 "No PDF attachments found (first 2000 chars): %s",
                 response.text[:2000],
             )
-            _save_debug_text("assignment_no_pdfs_found", response.text)
+            save_debug_text("assignment_no_pdfs_found", response.text)
             return "No PDF attachments found on the assignment page. The assignment brief might be directly in the HTML or in a different format."
             
         results = []
@@ -73,11 +75,17 @@ def fetch_assignment_pdf_text(assignment_url: str) -> str:
             try:
                 pdf_response = client.get(pdf_url)
                 pdf_response.raise_for_status()
-                
+
+                if len(pdf_response.content) > MAX_PDF_BYTES:
+                    results.append(
+                        f"Skipped {_pdf_filename(pdf_url)}: PDF is larger than {MAX_PDF_BYTES // (1024 * 1024)} MB."
+                    )
+                    continue
+
                 logger.info(f"Downloaded PDF, size: {len(pdf_response.content)} bytes. Extracting text...")
                 extracted_text = parse_pdf_content(pdf_response.content)
                 
-                results.append(f"--- Document: {pdf_url.split('/')[-1].split('?')[0]} ---\n{extracted_text}")
+                results.append(f"--- Document: {_pdf_filename(pdf_url)} ---\n{extracted_text}")
             except Exception as e:
                 logger.error(f"Failed to process PDF {pdf_url}: {e}")
                 results.append(f"Failed to process {pdf_url}: {e}")
