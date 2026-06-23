@@ -3,9 +3,9 @@
   "manifest_version": "0.4",
   "name": "nlearn-mcp",
   "display_name": "NLearn Sentinel",
-  "version": "0.1.0",
-  "description": "Connect Claude to your NLearn/Moodle dashboard — fetch deadlines, assignment briefs, and calendar-ready events.",
-  "long_description": "NLearn Sentinel scrapes your Moodle-based NLearn dashboard to surface upcoming deadlines, past assignments, PDF brief extraction, and Google Calendar-ready event data. Credentials are stored locally and never leave your machine.",
+  "version": "0.1.1",
+  "description": "Connect Claude to your NLearn/Moodle dashboard — fetch deadlines, assignment briefs (PDF/DOCX/PPTX), and calendar-ready events.",
+  "long_description": "NLearn Sentinel scrapes your Moodle-based NLearn dashboard to surface upcoming deadlines, past assignments, assignment brief extraction from PDF, DOCX, and PPTX files, and Google Calendar-ready event data. Credentials are stored locally and never leave your machine.",
   "author": {
     "name": "Heshan JJ",
     "url": "https://github.com/heshan-jj"
@@ -62,7 +62,7 @@
     },
     {
       "name": "get_assignment",
-      "description": "Download and extract text from assignment brief PDFs"
+      "description": "Download and extract text from assignment brief attachments (PDF, DOCX, PPTX)"
     },
     {
       "name": "get_deadlines_for_sync",

@@ -26,7 +26,7 @@ Your credentials stay on your machine. Claude Desktop handles Python and depende
 
 - Logs into NLearn and caches session cookies locally
 - Fetches upcoming and past deadlines from Moodle's timeline
-- Downloads assignment brief PDFs and extracts their text
+- Downloads assignment brief attachments (PDF, DOCX, PPTX) and extracts their text
 - Formats deadlines for Google Calendar sync
 - Re-authenticates on demand when sessions expire
 
@@ -37,7 +37,7 @@ Your credentials stay on your machine. Claude Desktop handles Python and depende
 | `get_upcoming_deadlines` | Upcoming tasks within a date window (default 14 days) |
 | `get_past_deadlines` | Past/missed tasks within a date window (default 60 days) |
 | `get_deadlines_for_sync` | Calendar-ready events for Google Calendar |
-| `get_assignment` | Fetch and extract text from an assignment brief PDF |
+| `get_assignment` | Fetch and extract text from an assignment brief (PDF, DOCX, or PPTX) |
 | `refresh_session` | Clear cached cookies and force a new login |
 
 ## Security
@@ -92,17 +92,6 @@ If SSO blocks automated login, save active browser cookies as JSON in `auth/cook
   "MOODLEID1_": "your_moodle_id_value"
 }
 ```
-
-## Building the extension
-
-To create a new `.mcpb` for release:
-
-```bash
-npm install -g @anthropic-ai/mcpb
-mcpb pack . nlearn-mcp.mcpb
-```
-
-Attach `nlearn-mcp.mcpb` to a [GitHub release](https://github.com/heshan-jj/nlearn-mcp/releases) so users can download it from the link above.
 
 ## Contributing
 
