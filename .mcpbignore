@@ -1,0 +1,13 @@
+.env
+.env.*
+.git/
+.github/
+.cursor/
+__pycache__/
+*.pyc
+*.egg-info/
+tests/
+scripts/
+auth/cookies.json
+*.mcpb
+.mcpbignore

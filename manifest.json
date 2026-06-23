@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/schemas/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "nlearn-mcp",
+  "display_name": "NLearn Sentinel",
+  "version": "0.1.0",
+  "description": "Connect Claude to your NLearn/Moodle dashboard — fetch deadlines, assignment briefs, and calendar-ready events.",
+  "long_description": "NLearn Sentinel scrapes your Moodle-based NLearn dashboard to surface upcoming deadlines, past assignments, PDF brief extraction, and Google Calendar-ready event data. Credentials are stored locally and never leave your machine.",
+  "author": {
+    "name": "Heshan JJ",
+    "url": "https://github.com/heshan-jj"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/heshan-jj/nlearn-mcp"
+  },
+  "homepage": "https://github.com/heshan-jj/nlearn-mcp",
+  "license": "MIT",
+  "server": {
+    "type": "uv",
+    "entry_point": "server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "server.py"],
+      "env": {
+        "NLEARN_URL": "${user_config.nlearn_url}",
+        "NLEARN_USERNAME": "${user_config.nlearn_username}",
+        "NLEARN_PASSWORD": "${user_config.nlearn_password}"
+      }
+    }
+  },
+  "user_config": {
+    "nlearn_url": {
+      "type": "string",
+      "title": "NLearn URL",
+      "description": "Base URL of your NLearn / Moodle instance (no trailing slash)",
+      "default": "https://nlearn.nsbm.ac.lk",
+      "required": true
+    },
+    "nlearn_username": {
+      "type": "string",
+      "title": "Username",
+      "description": "Your NLearn login username",
+      "required": true
+    },
+    "nlearn_password": {
+      "type": "string",
+      "title": "Password",
+      "description": "Your NLearn login password",
+      "required": true,
+      "sensitive": true
+    }
+  },
+  "tools": [
+    {
+      "name": "get_upcoming_deadlines",
+      "description": "Get structured upcoming academic deadlines from NLearn"
+    },
+    {
+      "name": "get_past_deadlines",
+      "description": "Get structured past/missed deadlines from NLearn"
+    },
+    {
+      "name": "get_assignment",
+      "description": "Download and extract text from assignment brief PDFs"
+    },
+    {
+      "name": "get_deadlines_for_sync",
+      "description": "Get calendar-ready deadline events for Google Calendar sync"
+    },
+    {
+      "name": "refresh_session",
+      "description": "Clear cached session cookies and re-authenticate"
+    }
+  ],
+  "tools_generated": false,
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  },
+  "keywords": ["nlearn", "moodle", "education", "deadlines", "assignments", "calendar"]
+}

@@ -64,22 +64,126 @@ pip install -e .
 
 ---
 
-## 🔌 Connection to Claude Desktop
+## 🔌 Connect to Claude
 
-Add `nlearn-mcp` to your `claude_desktop_config.json` configuration file:
+### Claude Desktop — install the `.mcpb` extension (recommended)
+
+The `.mcpb` file is a one-click Claude Desktop extension (like the filesystem connector). Claude Code does **not** install `.mcpb` files directly — use the [Claude Code](#claude-code) section below instead.
+
+#### Build the extension
+
+```bash
+npm install -g @anthropic-ai/mcpb
+mcpb pack . nlearn-mcp.mcpb
+```
+
+#### Install
+
+1. Double-click `nlearn-mcp.mcpb`, or drag it into the Claude Desktop window
+2. Or: **Settings → Extensions → Advanced settings → Install Extension…**
+3. Enter your **NLearn URL**, **username**, and **password** in the install dialog
+4. Restart Claude Desktop if prompted
+
+The extension uses the **uv** runtime — Claude Desktop manages Python and dependencies automatically.
+
+---
+
+### Claude Code
+
+Claude Code uses the `claude mcp` CLI or a project `.mcp.json` file, not `.mcpb` bundles. Pick one of the options below.
+
+#### Option A: `claude mcp add` (quickest)
+
+From the project directory, register a local stdio server. Replace the credential values with your own:
+
+```bash
+claude mcp add --scope project nlearn-mcp \
+  -e NLEARN_URL=https://nlearn.nsbm.ac.lk \
+  -e NLEARN_USERNAME=your_username \
+  -e NLEARN_PASSWORD=your_password \
+  -- uv run --directory . server.py
+```
+
+On Windows PowerShell:
+
+```powershell
+claude mcp add --scope project nlearn-mcp `
+  -e NLEARN_URL=https://nlearn.nsbm.ac.lk `
+  -e NLEARN_USERNAME=your_username `
+  -e NLEARN_PASSWORD=your_password `
+  -- uv run --directory . server.py
+```
+
+If you don't have `uv`, use Python instead (dependencies must already be installed with `pip install -e .`):
+
+```powershell
+claude mcp add --scope project nlearn-mcp `
+  -e NLEARN_URL=https://nlearn.nsbm.ac.lk `
+  -e NLEARN_USERNAME=your_username `
+  -e NLEARN_PASSWORD=your_password `
+  -- python server.py
+```
+
+Verify and use:
+
+```bash
+claude mcp list          # check connection status
+claude                   # start a session
+/mcp                     # manage servers inside a session
+```
+
+#### Option B: project `.mcp.json` (share with teammates)
+
+Create `.mcp.json` in the project root. **Do not commit real passwords** — each developer fills in credentials locally or uses environment variables on their machine:
 
 ```json
 {
   "mcpServers": {
     "nlearn-mcp": {
-      "command": "python",
-      "args": ["/path/to/nlearn-mcp/server.py"]
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "server.py"],
+      "env": {
+        "NLEARN_URL": "https://nlearn.nsbm.ac.lk",
+        "NLEARN_USERNAME": "your_username",
+        "NLEARN_PASSWORD": "your_password"
+      }
     }
   }
 }
 ```
 
-*Note: Replace `/path/to/nlearn-mcp/` with the absolute path of your local clone. On Windows, make sure to escape backslashes or use quotes appropriately.*
+Start Claude Code in this project and approve the server when prompted. Run `/mcp` to confirm it shows as connected.
+
+#### Option C: import from Claude Desktop
+
+If you already installed `nlearn-mcp.mcpb` in Claude Desktop (macOS or WSL on Windows):
+
+```bash
+claude mcp add-from-claude-desktop
+```
+
+Select **nlearn-mcp** from the interactive list. Credentials configured during the Desktop install are reused.
+
+---
+
+### Manual `claude_desktop_config.json` (legacy)
+
+If you prefer editing JSON instead of using the `.mcpb` installer, add this at the **root** of `claude_desktop_config.json` (sibling to `preferences`, **not** inside `epitaxyPrefs`):
+
+```json
+{
+  "mcpServers": {
+    "nlearn-mcp": {
+      "command": "C:\\Users\\YOU\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "args": ["D:\\Projects\\nlearn-mcp\\server.py"],
+      "cwd": "D:\\Projects\\nlearn-mcp"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving. Your `.env` file supplies credentials when using this approach.
 
 ---
 
