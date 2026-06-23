@@ -11,7 +11,7 @@ from utils.validation import validate_days
 logger = logging.getLogger(__name__)
 
 _ACTIVE_COURSE_IDS_CACHE_TTL_S = 300  # 5 minutes
-TIMELINE_EVENT_LIMIT = 100
+TIMELINE_EVENT_LIMIT = 50
 # Keyed by (base_url, sesskey) because sesskey can change during an auth refresh.
 _ACTIVE_COURSE_IDS_CACHE: dict[tuple[str, str], tuple[float, Set[int]]] = {}
 

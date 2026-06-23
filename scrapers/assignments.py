@@ -60,6 +60,17 @@ def _parse_attachment(content: bytes, ext: str, filename: str) -> str:
     return f"Unsupported attachment format: {filename}"
 
 
+def _extract_intro_text(html: str) -> str:
+    """Extract assignment description text from the Moodle intro/description block."""
+    soup = BeautifulSoup(html, "html.parser")
+    intro = soup.find(id="intro") or soup.find(class_="activity-description")
+    if not intro:
+        return ""
+
+    text = intro.get_text("\n", strip=True)
+    return text.strip()
+
+
 def fetch_assignment_text(assignment_url: str) -> str:
     """
     Navigates to the given Moodle assignment URL, finds attached PDF, DOCX, and
@@ -83,6 +94,11 @@ def fetch_assignment_text(assignment_url: str) -> str:
         attachment_links = _discover_attachment_links(response.text, assignment_url, base_url)
 
         if not attachment_links:
+            intro_text = _extract_intro_text(response.text)
+            if intro_text:
+                logger.info("No file attachments; returning assignment intro text from page HTML.")
+                return f"--- Assignment Instructions (from page) ---\n{intro_text}"
+
             logger.error(
                 "No supported attachments found (first 2000 chars): %s",
                 response.text[:2000],

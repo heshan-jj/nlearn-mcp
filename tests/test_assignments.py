@@ -1,6 +1,6 @@
 import unittest
 
-from scrapers.assignments import _discover_attachment_links, _file_extension
+from scrapers.assignments import _discover_attachment_links, _extract_intro_text, _file_extension
 
 
 class TestFileExtension(unittest.TestCase):
@@ -125,6 +125,20 @@ class TestDiscoverAttachmentLinks(unittest.TestCase):
             "https://moodle.example.edu",
         )
         self.assertEqual(links, [])
+
+
+class TestExtractIntroText(unittest.TestCase):
+    def test_extracts_intro_div_text(self) -> None:
+        html = """
+        <div id="intro" class="box generalbox">
+          <div class="no-overflow"><p>Submit the final report with Drive links.</p></div>
+        </div>
+        """
+        text = _extract_intro_text(html)
+        self.assertIn("Submit the final report", text)
+
+    def test_returns_empty_when_no_intro(self) -> None:
+        self.assertEqual(_extract_intro_text("<html><body></body></html>"), "")
 
 
 if __name__ == "__main__":
