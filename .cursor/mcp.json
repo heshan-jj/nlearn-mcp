@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "nlearn-mcp": {
+      "command": "C:\\Users\\HeshanJJ\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+      "args": ["${workspaceFolder}/server.py"],
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  }
+}

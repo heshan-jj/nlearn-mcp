@@ -1,5 +1,7 @@
 auth/cookies.json
 __pycache__/
 *.pyc
+*.egg-info/
 .env
+deadlines.ics
 ical_cron.log

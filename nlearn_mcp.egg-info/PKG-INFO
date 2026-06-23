@@ -3,8 +3,10 @@ Name: nlearn-mcp
 Version: 0.1.0
 Summary: MCP server for NLearn / Moodle integration
 Requires-Python: >=3.10
+License-File: LICENSE
 Requires-Dist: httpx>=0.27
 Requires-Dist: beautifulsoup4>=4.12
 Requires-Dist: python-dotenv>=1.0
 Requires-Dist: pdfplumber>=0.11
 Requires-Dist: mcp>=1.0
+Dynamic: license-file

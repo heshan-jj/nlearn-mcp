@@ -1,3 +1,5 @@
+LICENSE
+README.md
 pyproject.toml
 auth/__init__.py
 auth/session.py
@@ -9,9 +11,13 @@ nlearn_mcp.egg-info/top_level.txt
 scrapers/__init__.py
 scrapers/assignments.py
 scrapers/timeline.py
+tests/test_auth_session_integration.py
+tests/test_pdf_parser.py
+tests/test_sync_calendar.py
 tools/__init__.py
 tools/get_assignment.py
 tools/get_deadlines.py
+tools/refresh_session.py
 tools/sync_calendar.py
 utils/__init__.py
 utils/pdf_parser.py

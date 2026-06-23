@@ -1,3 +1,0 @@
-# GitHub Actions workflows removed.
-# The iCal feed is generated locally via Windows Task Scheduler (run_ical.bat)
-# and pushed to GitHub, where GitHub Pages serves it as a live feed.

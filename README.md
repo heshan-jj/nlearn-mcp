@@ -15,7 +15,6 @@ An Model Context Protocol (MCP) server for integrating your Moodle-based academi
 - **PDF Brief Extraction**: Automatically downloads course/assignment brief PDFs and extracts their text layouts, making assignment details instantly available to Claude.
 - **Google Calendar Ready**: Special tool formatting that outputs structured events ready for Claude to insert into your Google Calendar.
 - **On-demand Refresh**: Dedicated `refresh_session` tool to re-authenticate on the fly if a session expires during use.
-- **Local iCal Sync Feed**: Export deadlines to an `.ics` file locally, ready for hosting/publishing.
 
 ---
 
@@ -131,17 +130,6 @@ Downloads the Moodle assignment page, detects PDF attachment briefs, and returns
 
 ### 🔑 `refresh_session()`
 Deletes cached cookies (`auth/cookies.json`) and forces a new login on the next execution.
-
----
-
-## 🛠️ Calendar Generation (Local iCal Feed)
-
-If you wish to export a live iCal calendar feed:
-1. Run the local generation script:
-   ```bash
-   python generate_ical.py --days 30 --output deadlines.ics
-   ```
-2. For Windows users, a portable scheduler helper is provided in `run_ical.bat`. Run this periodically (e.g. via Windows Task Scheduler) to automatically update `deadlines.ics` and push updates to your personal repo, letting GitHub Pages host the live iCal link for Google Calendar/Outlook.
 
 ---
 
