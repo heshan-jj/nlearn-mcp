@@ -6,7 +6,7 @@ from utils.url_validation import url_belongs_to_instance
 def get_assignment(assignment_url: str) -> str:
     """
     Downloads and extracts text from assignment attachments (PDF, DOCX, PPTX)
-    found on the given Moodle assignment page.
+    found on the assignment page or linked Moodle resource activities.
 
     Args:
         assignment_url (str): The direct URL to the assignment page

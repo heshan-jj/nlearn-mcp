@@ -1,6 +1,11 @@
 import unittest
 
-from scrapers.assignments import _discover_attachment_links, _extract_intro_text, _file_extension
+from scrapers.assignments import (
+    _discover_attachment_links,
+    _discover_linked_resource_urls,
+    _extract_intro_text,
+    _file_extension,
+)
 
 
 class TestFileExtension(unittest.TestCase):
@@ -125,6 +130,59 @@ class TestDiscoverAttachmentLinks(unittest.TestCase):
             "https://moodle.example.edu",
         )
         self.assertEqual(links, [])
+
+
+class TestDiscoverLinkedResourceUrls(unittest.TestCase):
+    def test_discovers_prev_next_activity_links(self) -> None:
+        html = """
+        <div id="region-main">
+          <a id="prev-activity-link" href="/mod/resource/view.php?id=130020">Instructions</a>
+          <a id="next-activity-link" href="/mod/resource/view.php?id=130022">Next</a>
+        </div>
+        """
+        links = _discover_linked_resource_urls(
+            html,
+            "https://moodle.example.edu/mod/assign/view.php?id=130021",
+            "https://moodle.example.edu",
+        )
+        self.assertEqual(len(links), 2)
+        self.assertIn("id=130020", links[0])
+
+    def test_discovers_resource_links_in_intro(self) -> None:
+        html = """
+        <div id="intro">
+          <a href="/mod/resource/view.php?id=99">Brief</a>
+        </div>
+        """
+        links = _discover_linked_resource_urls(
+            html,
+            "https://moodle.example.edu/mod/assign/view.php?id=1",
+            "https://moodle.example.edu",
+        )
+        self.assertEqual(len(links), 1)
+
+    def test_skips_off_instance_resource_links(self) -> None:
+        html = '<a id="prev-activity-link" href="https://evil.example/mod/resource/view.php?id=1">X</a>'
+        links = _discover_linked_resource_urls(
+            html,
+            "https://moodle.example.edu/mod/assign/view.php?id=1",
+            "https://moodle.example.edu",
+        )
+        self.assertEqual(links, [])
+
+    def test_deduplicates_resource_links(self) -> None:
+        html = """
+        <div id="region-main">
+          <a id="prev-activity-link" href="/mod/resource/view.php?id=1">A</a>
+          <a href="/mod/resource/view.php?id=1">B</a>
+        </div>
+        """
+        links = _discover_linked_resource_urls(
+            html,
+            "https://moodle.example.edu/mod/assign/view.php?id=1",
+            "https://moodle.example.edu",
+        )
+        self.assertEqual(len(links), 1)
 
 
 class TestExtractIntroText(unittest.TestCase):
