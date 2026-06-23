@@ -6,3 +6,5 @@ __pycache__/
 deadlines.ics
 ical_cron.log
 *.mcpb
+nlearn_mcp.egg-info/
+
